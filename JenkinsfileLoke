@@ -1,0 +1,34 @@
+node
+{
+    properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), pipelineTriggers([pollSCM('* * * * *')])])
+    
+    def mavenHome = tool name: "maven3.8.1"
+    stage('checkoutcode')
+    {
+        git branch: 'development', credentialsId: '5e5b6421-9dbf-416a-bd66-2ce7da8b9fd9', url: 'https://github.com/Lokeshv7/maven-web-application.git'
+    }
+    
+    stage('Build')
+    {
+        sh "${mavenHome}/bin/mvn clean package"
+    }
+    
+    stage('ExecuteSonarqube')
+    {
+        sh "${mavenHome}/bin/mvn sonar:sonar"
+    }
+    
+    stage('UploadToNexus')
+    {
+        sh "${mavenHome}/bin/mvn deploy"
+    }
+    
+    stage('DeployToTomcat')
+    {
+        sshagent(['1d0c0856-cbc4-44bb-b912-8e7a94c40c04']) 
+        {
+            sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@3.137.218.15:/opt/apache-tomcat-10.0.5/webapps"
+        }
+    }
+
+}
